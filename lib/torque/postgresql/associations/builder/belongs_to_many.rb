@@ -94,8 +94,11 @@ module Torque
             end
           end
 
+          # The only valid dependent options are the restrict ones, which must run
+          # before the record is gone: +throw(:abort)+ is not allowed in after
+          # callbacks, so +restrict_with_error+ raised +UncaughtThrowError+
           def self.add_destroy_callbacks(model, reflection)
-            model.after_destroy lambda { |o| o.association(reflection.name).handle_dependency }
+            model.before_destroy lambda { |o| o.association(reflection.name).handle_dependency }
           end
 
           def self.define_validations(model, reflection)

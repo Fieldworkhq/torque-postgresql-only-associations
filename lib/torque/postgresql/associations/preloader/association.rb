@@ -75,7 +75,10 @@ module Torque
               # Add reverse to has_many
               records = groupped_records
               owners.each do |owner|
-                items = records.values_at(*Array.wrap(owner[owner_key_name]))
+                # Ids without a matching record (deleted without callbacks, or
+                # never existed) have no group, so skip them instead of adding
+                # +nil+ to the target
+                items = records.values_at(*Array.wrap(owner[owner_key_name])).compact
                 associate_records_to_owner(owner, items.flatten)
               end
             end

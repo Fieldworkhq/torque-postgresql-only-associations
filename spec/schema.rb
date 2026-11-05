@@ -21,7 +21,8 @@ ActiveRecord::Schema.define(version: version) do
   enable_extension "plpgsql"
 
   # Custom schemas used in this database.
-  create_schema "internal", force: :cascade
+  execute 'DROP SCHEMA IF EXISTS "internal" CASCADE'
+  create_schema "internal"
 
   # Custom types defined in this database.
   # Note that some types may not work with other database engines. Be careful if changing database.
@@ -127,7 +128,7 @@ ActiveRecord::Schema.define(version: version) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "users", schema: "internal", force: :cascade do |t|
+  create_table "internal.users", force: :cascade do |t|
     t.string   "email"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -149,29 +150,26 @@ ActiveRecord::Schema.define(version: version) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "activity_books", force: :cascade, inherits: :activities do |t|
+  create_table "activity_books", force: :cascade, id: false, options: "INHERITS (activities)" do |t|
     t.text     "description"
     t.string   "url"
     t.boolean  "activated"
   end
 
-  create_table "activity_posts", force: :cascade, inherits: [:activities, :images] do |t|
+  create_table "activity_posts", force: :cascade, id: false, options: "INHERITS (activities, images)" do |t|
     t.integer  "post_id"
     t.string   "url"
     t.integer  "activated"
   end
 
-  create_table "activity_post_samples", force: :cascade, inherits: :activity_posts
+  execute 'DROP TABLE IF EXISTS "activity_post_samples" CASCADE'
+  execute 'CREATE TABLE "activity_post_samples" () INHERITS ("activity_posts")'
 
-  create_table "question_selects", force: :cascade, inherits: :questions do |t|
+  create_table "question_selects", force: :cascade, id: false, options: "INHERITS (questions)" do |t|
     t.string  "options", array: true
   end
-
-  # create_table "activity_blanks", force: :cascade, inherits: :activities
-
-  # create_table "activity_images", force: :cascade, inherits: [:activities, :images]
 
   add_foreign_key "posts", "authors"
 end
 
-# ActiveRecord::Base.connection.schema_cache.clear!
+ActiveRecord::Base.connection.schema_cache.clear!

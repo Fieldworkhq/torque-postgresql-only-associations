@@ -370,6 +370,49 @@ RSpec.describe 'BelongsToMany' do
       expect { query.load }.not_to raise_error
     end
 
+    it 'skips ids without a record when preloading' do
+      records = FactoryBot.create_list(:tag, 2)
+      subject.update(tag_ids: [*records.map(&:id), 0])
+      records.last.delete
+
+      entry = Video.all.includes(:tags).load.first
+
+      expect(entry.tags).to be_loaded
+      expect(entry.tags.to_a).not_to include(nil)
+      expect(entry.tags.map(&:id)).to be_eql([records.first.id])
+      expect(entry.tags.pluck(:name)).to be_eql([records.first.name])
+    end
+
+    context 'with dependent: :restrict_with_error' do
+      before { Video.belongs_to_many(:tags, dependent: :restrict_with_error) }
+      after { Video.reset_callbacks(:destroy) }
+
+      it 'does not destroy a record that still lists ids' do
+        subject.update(tag_ids: [initial.id])
+
+        expect(subject.destroy).to be_falsey
+        expect(subject.errors[:base]).not_to be_empty
+        expect(Video.exists?(subject.id)).to be_truthy
+      end
+
+      it 'destroys a record without ids' do
+        expect(subject.destroy).to be_truthy
+        expect(Video.exists?(subject.id)).to be_falsey
+      end
+    end
+
+    context 'with dependent: :restrict_with_exception' do
+      before { Video.belongs_to_many(:tags, dependent: :restrict_with_exception) }
+      after { Video.reset_callbacks(:destroy) }
+
+      it 'raises and keeps a record that still lists ids' do
+        subject.update(tag_ids: [initial.id])
+
+        expect { subject.destroy }.to raise_error(ActiveRecord::DeleteRestrictionError)
+        expect(Video.exists?(subject.id)).to be_truthy
+      end
+    end
+
     context 'when the attribute has a default value' do
       subject { FactoryBot.create(:item) }
 
