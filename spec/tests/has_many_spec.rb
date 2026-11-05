@@ -455,6 +455,58 @@ RSpec.describe 'HasMany' do
       expect(query.to_sql).to match(/INNER JOIN "videos"/)
       expect { query.load }.not_to raise_error
     end
+
+    it 'removes only its id from the array when deleting a record' do
+      other_tag = Tag.create(name: 'B')
+      shared = FactoryBot.create(:video, tag_ids: [subject.id, other_tag.id])
+      single = FactoryBot.create(:video, tag_ids: [subject.id])
+
+      subject.videos.delete(shared)
+
+      expect(Video.exists?(shared.id)).to be_truthy
+      expect(shared.reload.tag_ids).to be_eql([other_tag.id])
+      expect(single.reload.tag_ids).to be_eql([subject.id])
+    end
+
+    it 'removes only its id from every array when clearing' do
+      other_tag = Tag.create(name: 'B')
+      shared = FactoryBot.create(:video, tag_ids: [subject.id, other_tag.id])
+      single = FactoryBot.create(:video, tag_ids: [subject.id])
+      unrelated = FactoryBot.create(:video, tag_ids: [other_tag.id])
+
+      subject.videos.clear
+
+      expect(shared.reload.tag_ids).to be_eql([other_tag.id])
+      expect(single.reload.tag_ids).to be_eql([])
+      expect(unrelated.reload.tag_ids).to be_eql([other_tag.id])
+    end
+
+    it 'removes only its id from the arrays when replacing the ids' do
+      other_tag = Tag.create(name: 'B')
+      kept = FactoryBot.create(:video, tag_ids: [subject.id])
+      removed = FactoryBot.create(:video, tag_ids: [subject.id, other_tag.id])
+
+      subject.video_ids = [kept.id]
+
+      expect(kept.reload.tag_ids).to be_eql([subject.id])
+      expect(removed.reload.tag_ids).to be_eql([other_tag.id])
+    end
+
+    context 'with dependent: :nullify' do
+      before { Tag.has_many :videos, array: true, dependent: :nullify }
+      after { Tag.reset_callbacks(:destroy) }
+
+      it 'removes only its id from every array when destroyed' do
+        other_tag = Tag.create(name: 'B')
+        shared = FactoryBot.create(:video, tag_ids: [subject.id, other_tag.id])
+        single = FactoryBot.create(:video, tag_ids: [subject.id])
+
+        subject.destroy!
+
+        expect(shared.reload.tag_ids).to be_eql([other_tag.id])
+        expect(single.reload.tag_ids).to be_eql([])
+      end
+    end
   end
 
   context 'using uuid' do
