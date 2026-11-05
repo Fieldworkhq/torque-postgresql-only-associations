@@ -53,8 +53,10 @@ module Torque
       def resolve_base_table(relation)
         return unless relation
 
+        # Rails 8.1 renamed +TableMetadata#associated_with?+, so check the
+        # reflection directly, which is exactly what that method did
         table = predicate_builder.send(:table)
-        if table.associated_with?(relation.to_s)
+        if klass._reflect_on_association(relation.to_s)
           table.associated_table(relation.to_s).send(:klass)
         else
           raise ArgumentError, "Relation for #{relation} not found on #{klass}"
@@ -65,8 +67,16 @@ module Torque
       # the given column
       def cast_for_condition(column, value)
         column = columns_hash[column.to_s] unless column.is_a?(ARColumn)
-        caster = connection.lookup_cast_type_from_column(column)
-        connection.type_cast(caster.serialize(value))
+
+        # Rails 8.1 removed +lookup_cast_type_from_column+ from the adapter, so
+        # rely on the public attribute type, the same one +where+ uses
+        value = klass.type_for_attribute(column.name).serialize(value)
+
+        if klass.respond_to?(:with_connection)
+          klass.with_connection { |conn| conn.type_cast(value) }
+        else
+          connection.type_cast(value)
+        end
       end
 
       private

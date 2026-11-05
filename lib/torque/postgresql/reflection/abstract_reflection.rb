@@ -9,6 +9,8 @@ module Torque
         ARR_NO_CAST = 'bigint'
         ARR_CAST = 'bigint[]'
 
+        JoinKeys = Struct.new(:key, :foreign_key)
+
         # Check if the foreign key actually exists
         def connected_through_array?
           false
@@ -19,7 +21,7 @@ module Torque
         def join_scope(table, foreign_table, foreign_klass)
           return super unless connected_through_array?
 
-          predicate_builder = predicate_builder(table)
+          predicate_builder = join_predicate_builder(table)
           scope_chain_items = join_scopes(table, predicate_builder)
           klass_scope       = klass_join_scope(table, predicate_builder)
 
@@ -67,10 +69,20 @@ module Torque
 
         # TODO: Deprecate this method
         def join_keys
-          OpenStruct.new(key: join_primary_key, foreign_key: join_foreign_key)
+          JoinKeys.new(join_primary_key, join_foreign_key)
         end
 
         private
+
+          # Rails 8.0 removed the private +predicate_builder(table)+ helper in
+          # favor of deriving it from the klass predicate builder
+          def join_predicate_builder(table)
+            if ::ActiveRecord::PredicateBuilder.method_defined?(:with)
+              klass.predicate_builder.with(::ActiveRecord::TableMetadata.new(klass, table))
+            else
+              predicate_builder(table)
+            end
+          end
 
           def build_id_constraint_between(table, foreign_table)
             klass_attr  = table[join_primary_key]

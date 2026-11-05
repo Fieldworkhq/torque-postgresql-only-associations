@@ -204,7 +204,9 @@ RSpec.describe 'HasMany' do
     end
 
     context 'with query constraint' do
-      let(:activity) { Activity.create! }
+      # Rails 8.1 skips preloading owners with any nil part of a composite key,
+      # so the activity needs an author to have a complete one
+      let(:activity) { Activity.create!(author: FactoryBot.create(:author)) }
 
       before do
         skip('Only Rails 7.1 onwards') unless Post.respond_to?(:query_constraints)

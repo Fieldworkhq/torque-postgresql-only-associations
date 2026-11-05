@@ -2,8 +2,6 @@
 
 module Torque
   module PostgreSQL
-    include ActiveSupport::Configurable
-
     # Stores a version check for compatibility purposes
     AR710 = (ActiveRecord.gem_version >= Gem::Version.new('7.1.0'))
     AR720 = (ActiveRecord.gem_version >= Gem::Version.new('7.2.0'))
@@ -13,10 +11,20 @@ module Torque
       ActiveRecord::Base.logger
     end
 
+    # Holds the configuration. It used to come from +ActiveSupport::Configurable+,
+    # which is deprecated on Rails 8.1 and removed on Rails 8.2
+    def self.config
+      @config ||= ActiveSupport::OrderedOptions.new
+    end
+
+    # Yields the configuration so it can be changed in a block
+    def self.configure
+      yield config
+    end
+
     # Allow nested configurations
-    # :TODO: Rely on +inheritable_copy+ to make nested configurations
     config.define_singleton_method(:nested) do |name, &block|
-      klass = Class.new(ActiveSupport::Configurable::Configuration).new
+      klass = ActiveSupport::OrderedOptions.new
       block.call(klass) if block
       send("#{name}=", klass)
     end
